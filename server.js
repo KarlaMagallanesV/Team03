@@ -1,10 +1,17 @@
+// Dependencias y configuraciones iniciales
 const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+
+// Configuración de la aplicación
 const app = express();
+
+// Configuración del puerto y del host para IP pública
+const PORT = process.env.PORT || 3001;
+const HOST = 'localhost'; // Escucha en todas las interfaces de red
 
 // Configuración de la base de datos
 const pool = mysql.createPool({
@@ -15,52 +22,6 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
-});
-
-// Middleware para analizar datos de formularios
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
-// Configurar la carpeta 'public' para servir archivos estáticos
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Ruta para la página principal
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'Dashboard.html'));
-});
-
-// Ruta para recibir el formulario de contacto y guardar los datos
-app.post('/contacto', (req, res) => {
-    const { nombres, apellidos, tipoDocumento, numeroDocumento, genero, edad, telefono, gmail, direccion, mensaje } = req.body;
-
-    // Verificar si los datos están completos
-    if (!nombres || !apellidos || !tipoDocumento || !numeroDocumento || !genero || !edad || !telefono || !gmail || !direccion || !mensaje) {
-        return res.status(400).send('Por favor completa todos los campos del formulario.');
-    }
-
-    // Cambiar a la base de datos 'dbGeneral'
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error al obtener conexión:', err.stack);
-            return res.status(500).send('Ocurrió un error al procesar tu consulta.');
-        }
-
-        // Insertar los datos en la tabla 'contactos'
-        const query = `
-            INSERT INTO contactos (nombres, apellidos, tipoDocumento, numeroDocumento, genero, edad, telefono, gmail, direccion, mensaje)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        connection.query(query, [nombres, apellidos, tipoDocumento, numeroDocumento, genero, edad, telefono, gmail, direccion, mensaje], (err, result) => {
-            if (err) {
-                console.error('Error al insertar datos en contactos: ' + err.stack);
-                return res.status(500).send('Ocurrió un error al procesar tu consulta.');
-            }
-
-            // Redirige a la página de inicio después de enviar el formulario
-            res.redirect('/');
-            connection.release();
-        });
-    });
 });
 
 // Configuración de la carpeta 'uploads' para almacenar imágenes
@@ -90,21 +51,58 @@ const upload = multer({
     }
 });
 
-// Ruta para agregar un evento
+// Middleware para analizar datos de formularios
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+// Configurar la carpeta 'public' para servir archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Rutas
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'Dashboard.html'));
+});
+
+app.post('/contacto', (req, res) => {
+    const { nombres, apellidos, tipoDocumento, numeroDocumento, genero, edad, telefono, gmail, direccion, mensaje } = req.body;
+
+    if (!nombres || !apellidos || !tipoDocumento || !numeroDocumento || !genero || !edad || !telefono || !gmail || !direccion || !mensaje) {
+        return res.status(400).send('Por favor completa todos los campos del formulario.');
+    }
+
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.error('Error al obtener conexión:', err.stack);
+            return res.status(500).send('Ocurrió un error al procesar tu consulta.');
+        }
+
+        const query = `
+            INSERT INTO contactos (nombres, apellidos, tipoDocumento, numeroDocumento, genero, edad, telefono, gmail, direccion, mensaje)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        connection.query(query, [nombres, apellidos, tipoDocumento, numeroDocumento, genero, edad, telefono, gmail, direccion, mensaje], (err, result) => {
+            if (err) {
+                console.error('Error al insertar datos en contactos: ' + err.stack);
+                return res.status(500).send('Ocurrió un error al procesar tu consulta.');
+            }
+            res.redirect('/');
+            connection.release();
+        });
+    });
+});
+
 app.post('/agregar-evento', upload.single('imagen'), (req, res) => {
     const { titulo, descripcion, fecha } = req.body;
     const imagen = req.file ? req.file.filename : null;
 
-    // Verificar que todos los campos sean enviados
     if (!titulo || !descripcion || !fecha) {
         return res.status(400).json({ error: 'Todos los campos son requeridos.' });
     }
-    
+
     if (!imagen) {
         return res.status(400).json({ error: 'La imagen es requerida.' });
     }
 
-    // Insertar en la base de datos
     const query = 'INSERT INTO eventos (titulo, descripcion, fecha, imagen) VALUES (?, ?, ?, ?)';
     pool.getConnection((err, connection) => {
         if (err) {
@@ -119,7 +117,6 @@ app.post('/agregar-evento', upload.single('imagen'), (req, res) => {
                 return res.status(500).json({ error: 'Error al guardar el evento.' });
             }
 
-            // Responder con el evento creado
             res.status(200).json({
                 id: result.insertId,
                 titulo,
@@ -131,24 +128,19 @@ app.post('/agregar-evento', upload.single('imagen'), (req, res) => {
     });
 });
 
-
-// Ruta para recibir el formulario de reservas y guardar los datos
 app.post('/reservas', (req, res) => {
     const { nombre, telefono, personas, fecha, hora, mensaje } = req.body;
 
-    // Verificar si los datos están completos
     if (!nombre || !telefono || !personas || !fecha || !hora) {
         return res.status(400).send('Por favor completa todos los campos del formulario.');
     }
 
-    // Cambiar a la base de datos 'dbGeneral'
     pool.getConnection((err, connection) => {
         if (err) {
             console.error('Error al obtener conexión:', err.stack);
             return res.status(500).send('Ocurrió un error al procesar tu consulta.');
         }
 
-        // Insertar los datos en la tabla 'reservas'
         const query = `
             INSERT INTO reservas (nombre, telefono, personas, fecha, hora, mensaje)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -158,20 +150,13 @@ app.post('/reservas', (req, res) => {
                 console.error('Error al insertar datos en reservas: ' + err.stack);
                 return res.status(500).send('Ocurrió un error al procesar tu reserva.');
             }
-
-            // Redirige a la página de inicio después de enviar el formulario
             res.redirect('/');
             connection.release();
         });
     });
 });
 
-
-
-// Configuración del puerto
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://:${PORT}`);
+// Iniciar el servidor
+app.listen(PORT, HOST, () => {
+    console.log(`Servidor corriendo en http://${HOST}:${PORT}`);
 });
-
-
