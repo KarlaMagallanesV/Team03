@@ -11,7 +11,7 @@ const app = express();
 
 // Configuración del puerto y del host para IP pública
 const PORT = process.env.PORT || 3001;
-const HOST = 'localhost'; // Escucha en todas las interfaces de red
+const HOST = '0.0.0.0'; // Escucha en todas las interfaces de red
 
 // Configuración de la base de datos
 const pool = mysql.createPool({
@@ -154,6 +154,14 @@ app.post('/reservas', (req, res) => {
             connection.release();
         });
     });
+});
+
+// Middleware para manejar errores de Multer
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: err.message });
+    }
+    next(err); // Si no es un error de Multer, pasamos al siguiente manejador de errores
 });
 
 // Iniciar el servidor
