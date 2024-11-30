@@ -99,7 +99,7 @@ app.post('/agregar-evento', upload.single('imagen'), (req, res) => {
     if (!titulo || !descripcion || !fecha) {
         return res.status(400).json({ error: 'Todos los campos son requeridos.' });
     }
-    
+
     if (!imagen) {
         return res.status(400).json({ error: 'La imagen es requerida.' });
     }
@@ -130,7 +130,6 @@ app.post('/agregar-evento', upload.single('imagen'), (req, res) => {
         });
     });
 });
-
 
 // Ruta para recibir el formulario de reservas y guardar los datos
 app.post('/reservas', (req, res) => {
@@ -166,12 +165,10 @@ app.post('/reservas', (req, res) => {
     });
 });
 
+// Configuración del puerto para IP pública
+const PORT = process.env.PORT || 3001;
+const HOST = '0.0.0.0';  // Escucha en todas las interfaces de red
 
-
-// Configuración del puerto
-const PORT = 3001;
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+    console.log(`Servidor corriendo en http://<tu-ip-publica>:${PORT}`);
 });
-
-
